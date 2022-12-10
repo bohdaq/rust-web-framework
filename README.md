@@ -2,6 +2,8 @@
 
 Collection of utility functions used to build [Rust Web Server](https://github.com/bohdaq/rust-web-server). Can be useful while developing HTTP related functionality.
 
+NOTE! The corresponding crate is called [rust-web-server](https://crates.io/crates/rust-web-server)
+
 ## Features
 1. [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
 1. [HTTP Range Requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests)
