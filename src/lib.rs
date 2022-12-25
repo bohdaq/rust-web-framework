@@ -18,49 +18,38 @@ pub mod response;
 pub mod server;
 pub mod symbol;
 pub mod thread_pool;
+pub mod log;
+
 extern crate core;
 
 use crate::entry_point::{bootstrap, get_ip_port_thread_count, set_default_values};
 use crate::server::Server;
 use crate::thread_pool::ThreadPool;
-use std::net::TcpListener;
-use crate::entry_point::command_line_args::CommandLineArgument;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener};
+use crate::log::Log;
 use crate::symbol::SYMBOL;
 
 pub fn start_server() {
-    const VERSION: &str = env!("CARGO_PKG_VERSION");
-    const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
-    const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
-    const DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
-    const RUST_VERSION: &str = env!("CARGO_PKG_RUST_VERSION");
-    const LICENSE: &str = env!("CARGO_PKG_LICENSE");
 
-    println!("Rust Web Server");
-    println!("Version:       {}", VERSION);
-    println!("Authors:       {}", AUTHORS);
-    println!("Repository:    {}", REPOSITORY);
-    println!("Desciption:    {}", DESCRIPTION);
-    println!("Rust Version:  {}", RUST_VERSION);
-    println!("License:       {}\n\n", LICENSE);
-
-    println!("Usage:\n");
-    let command_line_arg_list = CommandLineArgument::get_command_line_arg_list();
-    for arg in command_line_arg_list {
-        println!("  {} environment variable\n  -{} or --{} as command line line argument\n  {}\n\n", arg.environment_variable, arg.short_form, arg.long_form, arg._hint.unwrap())
-    }
-    println!("End of usage section\n\n");
+    let info = Log::info("Rust Web Server");
+    println!("{}", info);
+    let usage = Log::usage_information();
+    println!("{}", usage);
 
 
     println!("RWS Configuration Start: \n");
     set_default_values();
     bootstrap();
+    println!("RWS Configuration End\n\n");
+
+
     let (ip, port, thread_count) = get_ip_port_thread_count();
     create_tcp_listener_with_thread_pool(ip.as_str(), port, thread_count);
 }
 
 pub fn create_tcp_listener_with_thread_pool(ip: &str, port: i32, thread_count: i32) {
     let bind_addr = [ip, SYMBOL.colon, port.to_string().as_str()].join(SYMBOL.empty_string);
-    println!("Setting up http://{}...", bind_addr);
+    println!("Setting up server at protocol: http, ip {}, port {}", ip, port);
 
     let boxed_listener = TcpListener::bind(&bind_addr);
     if boxed_listener.is_err() {
@@ -69,7 +58,8 @@ pub fn create_tcp_listener_with_thread_pool(ip: &str, port: i32, thread_count: i
         let listener = boxed_listener.unwrap();
         let pool = ThreadPool::new(thread_count as usize);
 
-        println!("Hello, rust-web-server is up and running: http://{}", &bind_addr);
+        let server_url_thread_count = Log::server_url_thread_count("http", &bind_addr, thread_count);
+        println!("{}", server_url_thread_count);
 
         for boxed_stream in listener.incoming() {
             if boxed_stream.is_err() {
@@ -77,24 +67,17 @@ pub fn create_tcp_listener_with_thread_pool(ip: &str, port: i32, thread_count: i
             } else {
                 let stream = boxed_stream.unwrap();
 
-                print!("Connection established, ");
-
-                let boxed_local_addr = stream.local_addr();
-                if boxed_local_addr.is_ok() {
-                    print!("local addr: {}", boxed_local_addr.unwrap())
-                } else {
-                    eprintln!("\nunable to read local addr");
-                }
-
-                let boxed_peer_addr = stream.local_addr();
-                if boxed_peer_addr.is_ok() {
-                    print!(", peer addr: {}\n", boxed_peer_addr.unwrap())
-                } else {
-                    eprintln!("\nunable to read peer addr");
-                }
-
                 pool.execute(move || {
-                    Server::process_request(stream);
+
+                    let mut peer_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0,0,0,0)), 0);
+                    let boxed_peer_addr = stream.peer_addr();
+                    if boxed_peer_addr.is_ok() {
+                        peer_addr = boxed_peer_addr.unwrap()
+                    } else {
+                        eprintln!("\nunable to read peer addr");
+                    }
+
+                    Server::process_request(stream, peer_addr);
                 });
             }
         }
