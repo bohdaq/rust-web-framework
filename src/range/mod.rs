@@ -211,7 +211,16 @@ impl Range {
 
         let md = metadata(&static_filepath).unwrap();
         if md.is_file() {
-            let boxed_content_range_list = Range::parse_content_range(&static_filepath, md.len(), &range.value);
+            let mut path = static_filepath.as_str().to_string();
+
+            let is_link = FileExt::is_symlink(&static_filepath).unwrap();
+            if is_link {
+                let points_to = FileExt::symlink_points_to(&static_filepath).unwrap();
+                let slash_points_to = [SYMBOL.slash.to_string(), points_to].join(SYMBOL.empty_string);
+                path = FileExt::get_static_filepath(slash_points_to.as_str()).unwrap();
+            }
+
+            let boxed_content_range_list = Range::parse_content_range(&path, md.len(), &range.value);
             if boxed_content_range_list.is_ok() {
                 content_range_list = boxed_content_range_list.unwrap();
             } else {
