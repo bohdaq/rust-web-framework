@@ -18,6 +18,9 @@ Core lib for [rust-web-server](https://github.com/bohdaq/rust-web-server), [rust
 ## Community
 Rust Web Server has a [Discord](https://discord.gg/zaErjtr5Dm) where you can ask questions and share ideas. Follow the [Rust code of conduct](https://www.rust-lang.org/policies/code-of-conduct).
 
+## Frequently Asked Questions
+Open [FAQ](FAQ.md) for details.
+
 ## Donations
 If you appreciate my work and want to support it, feel free to do it via [PayPal](https://www.paypal.com/donate/?hosted_button_id=7J69SYZWSP6HJ).
 
