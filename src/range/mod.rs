@@ -197,8 +197,9 @@ impl Range {
 
     pub fn get_content_range_list(request_uri: &str, range: &Header) -> Result<Vec<ContentRange>, Error> {
         let mut content_range_list : Vec<ContentRange> = vec![];
+        let file_path_part = request_uri.replace(SYMBOL.slash, &FileExt::get_path_separator());
 
-        let boxed_static_filepath = FileExt::get_static_filepath(request_uri);
+        let boxed_static_filepath = FileExt::get_static_filepath(&file_path_part);
         if boxed_static_filepath.is_err() {
             let error = Error {
                 status_code_reason_phrase: STATUS_CODE_REASON_PHRASE.n500_internal_server_error,
@@ -209,27 +210,55 @@ impl Range {
         }
         let static_filepath = boxed_static_filepath.unwrap();
 
-        let md = metadata(&static_filepath).unwrap();
+        let boxed_metadata = metadata(&static_filepath);
+        if boxed_metadata.is_err() {
+            let error = Error {
+                status_code_reason_phrase: STATUS_CODE_REASON_PHRASE.n500_internal_server_error,
+                message: boxed_metadata.err().unwrap().to_string()
+            };
+            eprintln!("{}", &error.message);
+            return Err(error);
+        }
+
+        let md = boxed_metadata.unwrap();
         if md.is_file() {
             let mut path = static_filepath.as_str().to_string();
 
-            let is_link = FileExt::is_symlink(&static_filepath).unwrap();
+            let boxed_is_link = FileExt::is_symlink(&static_filepath);
+            if boxed_is_link.is_err() {
+                let error = Error {
+                    status_code_reason_phrase: STATUS_CODE_REASON_PHRASE.n500_internal_server_error,
+                    message: boxed_is_link.err().unwrap()
+                };
+                eprintln!("{}", &error.message);
+                return Err(error);
+            }
+
+
+            let is_link = boxed_is_link.unwrap();
             if is_link {
-                let points_to = FileExt::symlink_points_to(&static_filepath).unwrap();
-                let not_in_the_server_folder = points_to.starts_with("..");
-                if not_in_the_server_folder {
-                    let msg = format!("unable to locate file for given symlink. check if symlinks points to a file inside server directory");
+                let boxed_points_to = FileExt::symlink_points_to(&static_filepath);
+                if boxed_points_to.is_err() {
                     let error = Error {
                         status_code_reason_phrase: STATUS_CODE_REASON_PHRASE.n500_internal_server_error,
-                        message: msg
+                        message: boxed_points_to.err().unwrap()
                     };
                     eprintln!("{}", &error.message);
                     return Err(error);
                 }
 
+                let points_to = boxed_points_to.unwrap();
+                let reversed_link = &static_filepath.chars().rev().collect::<String>();
 
-                let slash_points_to = [SYMBOL.slash.to_string(), points_to].join(SYMBOL.empty_string);
-                path = FileExt::get_static_filepath(slash_points_to.as_str()).unwrap();
+                let mut symlink_directory = SYMBOL.empty_string.to_string();
+                let boxed_split = reversed_link.split_once(&FileExt::get_path_separator());
+                if boxed_split.is_some() {
+                    let (_filename, path) = boxed_split.unwrap();
+                    symlink_directory = path.chars().rev().collect::<String>();
+                }
+
+                let resolved_link = FileExt::resolve_symlink_path(&symlink_directory, &points_to).unwrap();
+                path = resolved_link;
             }
 
             let boxed_content_range_list = Range::parse_content_range(&path, md.len(), &range.value);
