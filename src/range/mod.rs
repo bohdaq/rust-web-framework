@@ -4,7 +4,7 @@ mod tests;
 use std::io::prelude::*;
 use std::fs::{metadata};
 use std::io::{Cursor};
-use crate::ext::file_ext::{FileExt};
+use file_ext::FileExt;
 
 use crate::response::{Error, Response, STATUS_CODE_REASON_PHRASE};
 use crate::header::Header;
