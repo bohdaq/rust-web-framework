@@ -581,7 +581,7 @@ fn generate() {
 
 
     let boundary = "------someboundary------";
-    let actual_form = FormMultipartData::_generate(part_list, boundary).unwrap();
+    let actual_form = FormMultipartData::generate(part_list, boundary).unwrap();
 
     let form = FormMultipartData::parse(&actual_form, boundary.to_string()).unwrap();
     assert_eq!(form.len(), 2);
