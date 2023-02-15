@@ -48,7 +48,8 @@ fn check_range_response_is_ok_two_part() {
         method: METHOD.get.to_string(),
         request_uri: uri.to_string(),
         http_version: VERSION.http_1_1.to_string(),
-        headers
+        headers,
+        body: vec![],
     };
 
     let raw_request = Request::_generate_request(request);
@@ -144,7 +145,8 @@ fn check_range_response_is_ok_single_part() {
         method: METHOD.get.to_string(),
         request_uri: uri.to_string(),
         http_version: VERSION.http_1_1.to_string(),
-        headers
+        headers,
+        body: vec![],
     };
 
     let raw_request = Request::_generate_request(request);
@@ -153,6 +155,7 @@ fn check_range_response_is_ok_single_part() {
         read_data: raw_request.as_bytes().to_vec(),
         write_data: vec![],
     };
+
     let peer_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0,0,0,0)), 0);
     let raw_response: Vec<u8> = Server::process_request(mock_tcp_stream, peer_addr);
 

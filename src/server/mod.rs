@@ -3,7 +3,7 @@ pub mod tests;
 
 use std::io::prelude::*;
 use std::borrow::Borrow;
-use std::net::{SocketAddr};
+use std::net::SocketAddr;
 
 use crate::request::{METHOD, Request};
 use crate::response::{Response, STATUS_CODE_REASON_PHRASE};
@@ -35,6 +35,9 @@ impl Server {
         boxed_read.unwrap();
         let request : &[u8] = &buffer;
 
+        // let raw_request = String::from_utf8(Vec::from(request)).unwrap();
+        // println!("\n\n______{}______\n\n", raw_request);
+
 
         let boxed_request = Request::parse_request(request);
         if boxed_request.is_err() {
@@ -53,10 +56,9 @@ impl Server {
         let request: Request = boxed_request.unwrap();
         let (response, request) = App::handle_request(request);
 
+
         let log_request_response = Log::request_response(&request, &response, &peer_addr);
         println!("{}", log_request_response);
-
-
         let raw_response = Response::generate_response(response, request);
 
         let boxed_stream = stream.write(raw_response.borrow());
@@ -72,7 +74,8 @@ impl Server {
             method: METHOD.get.to_string(),
             request_uri: "".to_string(),
             http_version: "".to_string(),
-            headers: vec![]
+            headers: vec![],
+            body: vec![],
         };
 
         let size = message.chars().count() as u64;

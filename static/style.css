@@ -1,0 +1,82 @@
+@media (prefers-color-scheme: dark) {
+    html, body {
+        background-color: black;
+        font-family: Roboto, sans-serif;
+        color: chartreuse;
+    }
+    a {
+        color: aqua;
+    }
+
+    .accent {
+        color: red;
+    }
+
+    input {
+        background-color: green;
+        color: white;
+        font-size: 1.5em;
+        padding: .2em;
+        border: none;
+    }
+    button {
+        background-color: darkgreen;
+        border: none;
+        padding: 0.5em 1em;
+        color: white;
+        font-size: 1em;
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    html, body {
+        background-color: whitesmoke;
+        font-family: Roboto, sans-serif;
+        color: grey;
+    }
+    a {
+        color: darkorange;
+    }
+
+    h1, h2 {
+        color: orange;
+    }
+
+    .accent {
+        color: orangered;
+    }
+
+    input {
+        background-color: orange;
+        color: white;
+        font-size: 1.5em;
+        padding: .2em;
+        border: none;
+    }
+
+    button {
+        background-color: darkorange;
+        border: none;
+        padding: 0.5em 1em;
+        color: white;
+        font-size: 1em;
+    }
+}
+
+h1 {
+    font-size: 2em;
+}
+
+h2 {
+    font-size: 1.3em;
+}
+
+div {
+    font-size: 1.2em;
+    margin-top: 1em;
+}
+
+div.container {
+    max-width: 35em;
+    margin: 2em;
+}

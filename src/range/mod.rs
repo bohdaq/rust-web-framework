@@ -170,6 +170,7 @@ impl Range {
                 let range = boxed_range.unwrap();
                 let boxed_read = FileExt::read_file_partially(filepath, range.start, range.end);
                 if boxed_read.is_ok() {
+
                     let content_type = MimeType::detect_mime_type(filepath);
                     let body = boxed_read.unwrap();
                     let content_range = ContentRange {

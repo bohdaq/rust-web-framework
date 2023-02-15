@@ -4,6 +4,7 @@
 //!
 
 pub mod app;
+pub mod body;
 pub mod client_hint;
 pub mod cors;
 pub mod entry_point;
