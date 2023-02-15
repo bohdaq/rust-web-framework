@@ -14,10 +14,14 @@ Core lib for [rust-web-server](https://github.com/bohdaq/rust-web-server), [rust
 1. [X-Frame-Options](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options)
 1. No third party dependencies (all used dependencies is written by me)
 1. [Symlinks](https://en.wikipedia.org/wiki/Symbolic_link)
-
+1. [Forms](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form) (without files)
 
 ## Community
-Rust Web Server has a [Discord](https://discord.gg/zaErjtr5Dm) where you can ask questions and share ideas. Follow the [Rust code of conduct](https://www.rust-lang.org/policies/code-of-conduct).
+Use GitHub [discussions](https://github.com/bohdaq/rust-web-framework/discussions), [issues](https://github.com/bohdaq/rust-web-framework/issues) and [pull requests](https://github.com/bohdaq/rust-web-framework/pulls).
+
+There is Rust Web Server [Discord](https://discord.gg/zaErjtr5Dm) where you can ask questions and share ideas.
+
+Follow the [Rust code of conduct](https://www.rust-lang.org/policies/code-of-conduct).
 
 ## Frequently Asked Questions
 Open [FAQ](FAQ.md) for details.
