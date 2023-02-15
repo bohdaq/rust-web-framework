@@ -27,5 +27,5 @@ Follow the [Rust code of conduct](https://www.rust-lang.org/policies/code-of-con
 Open [FAQ](FAQ.md) for details.
 
 ## Donations
-If you appreciate my work and want to support it, feel free to do it via [PayPal](https://www.paypal.com/donate/?hosted_button_id=7J69SYZWSP6HJ).
+Send me tips via [PayPal](https://www.paypal.com/donate/?hosted_button_id=7J69SYZWSP6HJ).
 
