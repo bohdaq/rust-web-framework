@@ -6,7 +6,7 @@ authors:
     orcid: https://orcid.org/0000-0002-5221-5607
     email: bohdan.tsap@tutanota.com
 title: "Rust Web Framework"
-version: 8.0.0
-doi: 10.5281/zenodo.7420954
-date-released: 2022-09-18
+version: 10.0.0
+doi: 10.5281/zenodo.7641773
+date-released: 2023-02-15
 url: "https://github.com/bohdaq/rust-web-server/"
