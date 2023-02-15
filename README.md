@@ -2,7 +2,7 @@
 
 Collection of utility functions used to build [Rust Web Server](https://github.com/bohdaq/rust-web-server). Can be useful while developing HTTP related functionality.
 
-Core lib for [rust-web-server](https://github.com/bohdaq/rust-web-server), [rust-tls-server](https://github.com/bohdaq/rust-tls-server) and [http-to-https-letsencrypt](https://github.com/bohdaq/rust-http-to-https-letsencrypt-acme).
+Core lib for [rust-web-server](https://github.com/bohdaq/rust-web-server), [rust-tls-server](https://github.com/bohdaq/rust-tls-server) and [http-to-https-letsencrypt](https://github.com/bohdaq/http-to-https-letsencrypt).
 
 **NOTE! The corresponding crate is called [rust-web-server](https://crates.io/crates/rust-web-server)**.
 
