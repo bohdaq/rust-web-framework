@@ -20,8 +20,10 @@ pub mod server;
 pub mod symbol;
 pub mod thread_pool;
 pub mod log;
+pub mod core;
+pub mod null;
+pub mod json;
 
-extern crate core;
 
 use crate::entry_point::{bootstrap, get_ip_port_thread_count, set_default_values};
 use crate::server::Server;
