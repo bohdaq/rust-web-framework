@@ -12,9 +12,12 @@ Core lib for [rust-web-server](https://github.com/bohdaq/rust-web-server), [rust
 1. [HTTP Client Hints](https://developer.mozilla.org/en-US/docs/Web/HTTP/Client_hints)
 1. [X-Content-Type-Options](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options)
 1. [X-Frame-Options](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options)
-1. No third party dependencies (all used dependencies is written by me)
+1. No third party dependencies
 1. [Symlinks](https://en.wikipedia.org/wiki/Symbolic_link)
 1. [Forms](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form) (without files)
+
+## Docs
+Open [documentation](src/README.md) for details.
 
 ## Community
 Use GitHub [discussions](https://github.com/bohdaq/rust-web-framework/discussions), [issues](https://github.com/bohdaq/rust-web-framework/issues) and [pull requests](https://github.com/bohdaq/rust-web-framework/pulls).

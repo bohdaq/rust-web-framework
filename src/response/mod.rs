@@ -1,11 +1,14 @@
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod example;
 
 use std::io;
 use std::io::{BufRead, Cursor, Read};
 use crate::header::Header;
 use crate::ext::string_ext::StringExt;
 use crate::http::{HTTP, VERSION};
+use crate::mime_type::MimeType;
 use crate::range::{ContentRange, Range};
 use crate::request::{METHOD, Request};
 use crate::symbol::SYMBOL;
@@ -597,5 +600,241 @@ impl Response {
         };
 
         response
+    }
+
+    pub fn generate(&mut self) -> Vec<u8> {
+        let response = &mut self.clone();
+
+        if response.content_range_list.len() == 1 {
+            let content_range_index = 0;
+            let content_range = response.content_range_list.get(content_range_index).unwrap();
+            self.headers.push(Header {
+                name: Header::_CONTENT_TYPE.to_string(),
+                value: content_range.content_type.to_string()
+            });
+
+            let content_range_header_value = [
+                Range::BYTES,
+                SYMBOL.whitespace,
+                &content_range.range.start.to_string(),
+                SYMBOL.hyphen,
+                &content_range.range.end.to_string(),
+                SYMBOL.slash,
+                &content_range.size
+            ].join("");
+            response.headers.push(Header {
+                name: Header::_CONTENT_RANGE.to_string(),
+                value: content_range_header_value.to_string()
+            });
+
+            response.headers.push(Header {
+                name: Header::_CONTENT_LENGTH.to_string(),
+                value: content_range.body.len().to_string()
+            });
+        }
+
+        if response.content_range_list.len() > 1 {
+            let content_range_header_value = [
+                Range::MULTIPART,
+                SYMBOL.slash,
+                Range::BYTERANGES,
+                SYMBOL.semicolon,
+                SYMBOL.whitespace,
+                Range::BOUNDARY,
+                SYMBOL.equals,
+                Range::STRING_SEPARATOR
+            ].join("");
+            response.headers.push(Header {
+                name: Header::_CONTENT_TYPE.to_string(),
+                value: content_range_header_value,
+            });
+        }
+
+        let response_clone = response.clone();
+        let body = Response::generate_body(response_clone.content_range_list);
+
+        let mut headers_str = SYMBOL.new_line_carriage_return.to_string();
+
+        let header_list = response.headers.clone();
+        for header in header_list {
+            let mut header_string = SYMBOL.empty_string.to_string();
+            header_string.push_str(&header.name);
+            header_string.push_str(Header::NAME_VALUE_SEPARATOR);
+            header_string.push_str(&header.value);
+            header_string.push_str(SYMBOL.new_line_carriage_return);
+            headers_str.push_str(&header_string);
+        }
+
+        let response_clone = response.clone();
+        let status = [response_clone.http_version, response.status_code.to_string(), response_clone.reason_phrase].join(SYMBOL.whitespace);
+        let response_without_body = format!(
+            "{}{}{}",
+            status,
+            headers_str,
+            SYMBOL.new_line_carriage_return,
+        );
+
+
+        [response_without_body.into_bytes(), body].concat()
+    }
+
+    pub fn get_header(&self, name: String) -> Option<&Header> {
+        self._get_header(name)
+    }
+
+    pub fn parse(response_vec_u8: &[u8]) -> Result<Response, String> {
+        let mut cursor = io::Cursor::new(response_vec_u8);
+
+        let mut response = Response {
+            http_version: "".to_string(),
+            status_code: 0,
+            reason_phrase: "".to_string(),
+            headers: vec![],
+            content_range_list: vec![],
+        };
+
+        let content_length: usize = 0;
+        let iteration_number : usize = 0;
+
+        let boxed_parse = Response::parse_raw_response_via_cursor(&mut cursor, iteration_number, &mut response, content_length);
+        if boxed_parse.is_err() {
+            let message = boxed_parse.err().unwrap();
+            return Err(message);
+        }
+
+        return Ok(response);
+    }
+
+    pub fn parse_raw_response_via_cursor(
+        cursor: &mut Cursor<&[u8]>,
+        mut iteration_number: usize,
+        response: &mut Response,
+        mut content_length: usize) -> Result<(), String> {
+
+        let mut buffer = vec![];
+        let boxed_read = cursor.read_until(b'\n', &mut buffer);
+        if boxed_read.is_err() {
+            let message = format!("unable to parse raw response via cursor {}", boxed_read.err().unwrap());
+            return Err(message);
+        }
+        let bytes_offset = boxed_read.unwrap();
+        let mut buffer_as_u8_array: &[u8] = &buffer;
+        let boxed_string = String::from_utf8(Vec::from(buffer_as_u8_array));
+        if boxed_string.is_err() {
+            let message = boxed_string.err().unwrap().to_string();
+            return Err(message);
+        }
+        let string = boxed_string.unwrap();
+
+        let is_first_iteration = iteration_number == 0;
+        let new_line_char_found = bytes_offset != 0;
+        let current_string_is_empty = string.trim().len() == 0;
+
+        if is_first_iteration {
+            let boxed_http_version_status_code_reason_phrase = Response::_parse_http_version_status_code_reason_phrase_string(&string);
+            if boxed_http_version_status_code_reason_phrase.is_err() {
+                let message = boxed_http_version_status_code_reason_phrase.err().unwrap();
+                return Err(message);
+            }
+
+            let (http_version, status_code, reason_phrase) = boxed_http_version_status_code_reason_phrase.unwrap();
+
+            response.http_version = http_version;
+            response.status_code = status_code;
+            response.reason_phrase = reason_phrase;
+        }
+
+        if current_string_is_empty {
+            let mut is_multipart = false;
+            // if response does not contain Content-Type, it will be defaulted to APPLICATION_OCTET_STREAM
+            let mut content_type = MimeType::APPLICATION_OCTET_STREAM;
+
+            let boxed_content_type = response.get_header(Header::_CONTENT_TYPE.to_string());
+            if boxed_content_type.is_some() {
+                let content_type_header = response.get_header(Header::_CONTENT_TYPE.to_string()).unwrap();
+                content_type = content_type_header.value.as_str();
+                is_multipart = Response::_is_multipart_byteranges_content_type(&content_type_header);
+            }
+
+
+            if is_multipart {
+                let content_range_list : Vec<ContentRange> = vec![];
+
+                let mut buf = vec![];
+                let boxed_read = cursor.read_until(b'\n', &mut buf);
+                if boxed_read.is_err() {
+                    let message = boxed_read.err().unwrap().to_string();
+                    return Err(message);
+                }
+                boxed_read.unwrap();
+                let boxed_content_range_list = Range::parse_multipart_body(cursor, content_range_list);
+                if boxed_content_range_list.is_err() {
+                    let message = boxed_content_range_list.err().unwrap();
+                    return Err(message);
+                }
+
+                response.content_range_list = boxed_content_range_list.unwrap();
+            } else {
+                buffer = vec![];
+                let boxed_read = cursor.read_to_end(&mut buffer);
+                if boxed_read.is_err() {
+                    let message = boxed_read.err().unwrap().to_string();
+                    return Err(message);
+                }
+
+                buffer_as_u8_array = &buffer;
+
+                let content_range = ContentRange {
+                    unit: Range::BYTES.to_string(),
+                    range: Range {
+                        start: 0,
+                        end: buffer_as_u8_array.len() as u64
+                    },
+                    size: buffer_as_u8_array.len().to_string(),
+                    body: Vec::from(buffer_as_u8_array),
+                    content_type: content_type.to_string()
+                };
+                response.content_range_list = vec![content_range];
+
+
+            }
+
+            return Ok(());
+        }
+
+        if new_line_char_found && !current_string_is_empty {
+            if !is_first_iteration {
+                let boxed_header = Response::parse_http_response_header_string(&string);
+                if boxed_header.is_err() {
+                    let message = boxed_header.err().unwrap();
+                    return Err(message);
+                }
+                let header = boxed_header.unwrap();
+                if header.name == Header::_CONTENT_LENGTH {
+                    content_length = header.value.parse().unwrap();
+                }
+                response.headers.push(header);
+            }
+
+            iteration_number += 1;
+            return Response::parse_raw_response_via_cursor(cursor, iteration_number, response, content_length);
+        } else {
+            return Err("unable to parse".to_string());
+        }
+    }
+
+    pub fn parse_http_response_header_string(header_string: &str) -> Result<Header, String> {
+        let header_parts: Option<(&str, &str)> = header_string.split_once(Header::NAME_VALUE_SEPARATOR);
+        if header_parts.is_none() {
+            let message = format!("unable to parse header: {}", header_string);
+            return Err(message);
+        }
+        let (header_name, raw_header_value) = header_parts.unwrap();
+        let header_value = StringExt::truncate_new_line_carriage_return(&raw_header_value);
+
+        Ok(Header {
+            name: header_name.to_string(),
+            value: header_value.to_string()
+        })
     }
 }

@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod example;
 
 use std::collections::HashMap;
 use std::io;
@@ -106,6 +108,22 @@ impl Request {
         method_list
     }
 
+    // instance method way to generate a request
+    pub fn generate(&self) -> Vec<u8> {
+        let clone = self.clone();
+        let mut request = Request::_generate_request(clone).as_bytes().to_vec();
+
+        let mut body = self.body.clone();
+        request.append(&mut body);
+
+        request
+    }
+
+    // same as _generate_request, not renamed original for backward compatability
+    pub fn generate_request(request: Request) -> String {
+        Request::_generate_request(request)
+    }
+
     pub fn _generate_request(request: Request) -> String {
         let status = [
             request.method,
@@ -133,6 +151,10 @@ impl Request {
 
 
         request
+    }
+
+    pub fn parse(request_vec_u8: &[u8]) ->  Result<Request, String> {
+        Request::parse_request(request_vec_u8)
     }
 
     pub fn parse_request(request_vec_u8: &[u8]) ->  Result<Request, String> {
