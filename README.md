@@ -16,7 +16,7 @@ Core lib for [rust-web-server](https://github.com/bohdaq/rust-web-server), [rust
 1. [Symlinks](https://en.wikipedia.org/wiki/Symbolic_link)
 1. [Forms](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form) (without files)
 
-## Docs
+## Documentation
 Open [documentation](src/README.md) for details.
 
 ## Community

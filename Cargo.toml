@@ -8,11 +8,10 @@ edition = "2021"
 license = "MIT OR Apache-2.0 OR ISC OR LGPL-3.0-or-later OR CC-BY-4.0"
 categories = ["web-programming", "web-programming::http-client", "web-programming::http-server", "parsing", "network-programming"]
 keywords = ["HTTP", "server", "request", "response", "header"]
-rust-version = "1.68"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 file-ext = "10.0.0"
-url-search-params = "10.0.0"
-url-build-parse = "10.0.0"
+url-search-params = "12.0.0"
+url-build-parse = "12.1.0"
