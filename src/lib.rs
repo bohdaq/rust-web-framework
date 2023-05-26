@@ -22,6 +22,7 @@ pub mod thread_pool;
 pub mod log;
 pub mod core;
 pub mod null;
+pub mod url;
 pub mod json;
 
 

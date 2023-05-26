@@ -21,6 +21,16 @@ pub struct Symbol {
     pub quotation_mark: &'static str,
     pub underscore: &'static str,
     pub single_quote: &'static str,
+    pub percent: &'static str,
+    pub exclamation_mark: &'static str,
+    pub dollar: &'static str,
+    pub ampersand: &'static str,
+    pub opening_bracket: &'static str,
+    pub closing_bracket: &'static str,
+    pub asterisk: &'static str,
+    pub plus: &'static str,
+    pub question_mark: &'static str,
+    pub at: &'static str,
 }
 
 pub const SYMBOL: Symbol = Symbol {
@@ -43,4 +53,14 @@ pub const SYMBOL: Symbol = Symbol {
     quotation_mark: "\"",
     underscore: "_",
     single_quote: "'",
+    percent: "%",
+    exclamation_mark: "!",
+    dollar: "$",
+    ampersand: "&",
+    opening_bracket: "(",
+    closing_bracket: ")",
+    asterisk: "*",
+    plus: "+",
+    question_mark: "?",
+    at: "@",
 };
