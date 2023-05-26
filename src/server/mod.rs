@@ -3,16 +3,21 @@ pub mod tests;
 
 use std::io::prelude::*;
 use std::borrow::Borrow;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr, TcpListener};
+use std::str::FromStr;
 
 use crate::request::{METHOD, Request};
 use crate::response::{Response, STATUS_CODE_REASON_PHRASE};
 use crate::app::App;
-use crate::entry_point::get_request_allocation_size;
+use crate::application::Application;
+use crate::core::New;
+use crate::entry_point::{bootstrap, get_ip_port_thread_count, get_request_allocation_size, set_default_values};
 use crate::header::Header;
 use crate::log::Log;
 use crate::mime_type::MimeType;
 use crate::range::{ContentRange, Range};
+use crate::symbol::SYMBOL;
+use crate::thread_pool::ThreadPool;
 
 pub struct Server {}
 impl Server {
@@ -98,4 +103,207 @@ impl Server {
         return response;
     }
 
+    pub fn process(mut stream: impl Read + Write + Unpin,
+                   connection: ConnectionInfo,
+                   app: impl Application) -> Result<(), String> {
+
+        let request_allocation_size = connection.request_size;
+        let mut buffer = vec![0; request_allocation_size as usize];
+        let boxed_read = stream.read(&mut buffer);
+        if boxed_read.is_err() {
+            let read_message = boxed_read.err().unwrap().to_string();
+            let raw_response = Server::bad_request_response(read_message.clone());
+            let boxed_stream = stream.write(raw_response.borrow());
+            if boxed_stream.is_ok() {
+                stream.flush().unwrap();
+            } else {
+                let write_message = boxed_stream.err().unwrap().to_string();
+                let combined_error = [read_message.clone(), SYMBOL.comma.to_string(), write_message].join(SYMBOL.empty_string);
+                return Err(combined_error);
+            };
+
+            return Err(read_message);
+        }
+
+        boxed_read.unwrap();
+        let request : &[u8] = &buffer;
+
+        // let raw_request = String::from_utf8(Vec::from(request)).unwrap();
+        // println!("\n\n______{}______\n\n", raw_request);
+
+
+        let boxed_request = Request::parse(request);
+        if boxed_request.is_err() {
+            let message = boxed_request.err().unwrap();
+
+            let raw_response = Server::bad_request_response(message.clone());
+            let boxed_stream = stream.write(raw_response.borrow());
+            if boxed_stream.is_ok() {
+                stream.flush().unwrap();
+            } else {
+                let write_message = boxed_stream.err().unwrap().to_string();
+                let combined_error = [message, SYMBOL.comma.to_string(), write_message].join(SYMBOL.empty_string);
+                return Err(combined_error);
+            };
+            return Err(message);
+        }
+
+
+        let request: Request = boxed_request.unwrap();
+
+        let app_processing = app.execute(&request, &connection);
+        if app_processing.is_err() {
+            let message = app_processing.as_ref().err().unwrap().to_string();
+            let response = Server::bad_request_response(message);
+
+            let boxed_stream = stream.write(response.borrow());
+            if boxed_stream.is_ok() {
+                stream.flush().unwrap();
+            } else {
+                let write_message = boxed_stream.err().unwrap().to_string();
+                return Err(write_message);
+            };
+        }
+        let response = app_processing.unwrap();
+
+
+        let client = connection.client;
+        let client_addr = SocketAddr::new(IpAddr::from_str(client.ip.as_str()).unwrap(), client.port as u16);
+        let log_request_response = Log::request_response(&request, &response, &client_addr);
+        println!("{}", log_request_response);
+
+        let raw_response = Response::generate_response(response, request);
+
+        let boxed_stream = stream.write(raw_response.borrow());
+        if boxed_stream.is_ok() {
+            stream.flush().unwrap();
+        } else {
+            let write_message = boxed_stream.err().unwrap().to_string();
+            return Err(write_message);
+        };
+
+        Ok(())
+    }
+
+    pub fn setup() -> Result<(TcpListener, ThreadPool), String> {
+        let info = Log::info("Rust Web Server");
+        println!("{}", info);
+
+        let usage_info = Log::usage_information();
+        println!("{}", usage_info);
+
+
+        println!("RWS Configuration Start: \n");
+
+        set_default_values();
+        bootstrap();
+
+        println!("\nRWS Configuration End\n\n");
+
+
+        let (ip, port, thread_count) = get_ip_port_thread_count();
+
+
+        let mut ip_readable = ip.to_string();
+
+        if ip.contains(":") {
+            ip_readable = [SYMBOL.opening_square_bracket, &ip, SYMBOL.closing_square_bracket].join("");
+        }
+
+        let bind_addr = [ip_readable, SYMBOL.colon.to_string(), port.to_string()].join(SYMBOL.empty_string);
+        println!("Setting up http://{}...", &bind_addr);
+
+        let boxed_listener = TcpListener::bind(&bind_addr);
+        if boxed_listener.is_err() {
+            let message = format!("unable to set up TCP listener: {}", boxed_listener.err().unwrap());
+            return Err(message);
+        }
+
+        let listener = boxed_listener.unwrap();
+        let pool = ThreadPool::new(thread_count as usize);
+
+
+        let server_url_thread_count = Log::server_url_thread_count("http", &bind_addr, thread_count);
+        println!("{}", server_url_thread_count);
+
+        Ok((listener, pool))
+    }
+
+    pub fn run(listener : TcpListener,
+               pool: ThreadPool,
+               app: impl Application + New + Send + 'static + Copy) {
+        for boxed_stream in listener.incoming() {
+            if boxed_stream.is_err() {
+                eprintln!("unable to get TCP stream: {}", boxed_stream.err().unwrap());
+                return;
+            }
+
+            let stream = boxed_stream.unwrap();
+
+            print!("Connection established, ");
+
+            let boxed_local_addr = stream.local_addr();
+            if boxed_local_addr.is_ok() {
+                print!("local addr: {}", boxed_local_addr.unwrap())
+            } else {
+                eprintln!("\nunable to read local addr");
+                return;
+            }
+
+            let boxed_peer_addr = stream.peer_addr();
+            if boxed_peer_addr.is_err() {
+                eprintln!("\nunable to read peer addr");
+                return;
+            }
+            let peer_addr = boxed_peer_addr.unwrap();
+            print!(", peer addr: {}\n", peer_addr.to_string());
+
+            let (server_ip, server_port, _thread_count) = get_ip_port_thread_count();
+            let client_ip = peer_addr.ip().to_string();
+            let client_port = peer_addr.port() as i32;
+            let request_allocation_size = get_request_allocation_size();
+
+            let connection = ConnectionInfo {
+                client: Address {
+                    ip: client_ip.to_string(),
+                    port: client_port
+                },
+                server: Address {
+                    ip: server_ip,
+                    port: server_port
+                },
+                request_size: request_allocation_size,
+            };
+
+
+
+            pool.execute(move || {
+                let boxed_process = Server::process(stream, connection, app);
+                if boxed_process.is_err() {
+                    let message = boxed_process.err().unwrap();
+                    eprintln!("{}", message);
+                }
+            });
+
+        }
+
+
+    }
+
 }
+
+#[derive(Clone)]
+pub struct ConnectionInfo {
+    pub client: Address,
+    pub server: Address,
+    pub request_size: i64
+}
+
+#[derive(Clone)]
+pub struct Address {
+    pub ip: String,
+    pub port: i32
+}
+
+
+
