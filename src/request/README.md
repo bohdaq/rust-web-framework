@@ -1,4 +1,4 @@
-[Read Me](https://github.com/bohdaq/rust-web-framework/blob/main/README.md) > [Documentation](https://github.com/bohdaq/rust-web-framework/tree/main/src/README.md)  > Request
+[Read Me](https://github.com/bohdaq/rust-web-server/blob/main/README.md) > [Documentation](https://github.com/bohdaq/rust-web-server/tree/main/src/README.md)  > Request
 
 # Request 
 
@@ -42,4 +42,8 @@ To retrieve domain from the request invoke [request.get_domain()](https://github
 To get port from the request call [request.get_port()](https://github.com/bohdaq/rust-web-server/blob/b1465a0687bcff1c7376b470d5ca7cb17419aa63/src/request/tests.rs#L427) method on request instance. Port is taken from `Host` header of the request, not from underlying networking.
 #### Links
 - [List of HTTP methods](https://github.com/bohdaq/rust-web-server/blob/main/src/request/mod.rs#L37)
-- [Header](https://github.com/bohdaq/rust-web-server/tree/main/src/header)
+
+
+  Current Topic | Next Topic
+  ---------------| ---
+  Request          | [Header](https://github.com/bohdaq/rust-web-server/tree/main/src/header)

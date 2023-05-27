@@ -1,4 +1,4 @@
-[Read Me](README.md) > Null
+[Read Me](https://github.com/bohdaq/rust-web-server/blob/main/README.md) > [Documentation](https://github.com/bohdaq/rust-web-server/tree/main/src/README.md)  > Null
 
 # Null 
 
@@ -15,6 +15,11 @@ Implements several Rust core traits:
 Additionaly implements Rust Web Server trait `New`.
 
 In case of parse error returns `ParseNullError`. Error details specified within `message` field.
+
+Previous topic | Current Topic | Next Topic
+--- |---------------| ---
+[URL](https://github.com/bohdaq/rust-web-server/tree/main/src/url) | Null   | [Core](https://github.com/bohdaq/rust-web-server/tree/main/src/core)       
+
 
 
 
