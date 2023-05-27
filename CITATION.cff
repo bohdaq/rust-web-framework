@@ -8,5 +8,5 @@ authors:
 title: "Rust Web Framework"
 version: 12.0.0
 doi: 10.5281/zenodo.7977731
-date-released: 2023-04-25
+date-released: 2023-05-27
 url: "https://github.com/bohdaq/rust-web-framework"
