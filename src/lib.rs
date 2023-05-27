@@ -4,7 +4,6 @@
 //!
 
 pub mod app;
-pub mod body;
 pub mod client_hint;
 pub mod cors;
 pub mod entry_point;
@@ -20,17 +19,32 @@ pub mod server;
 pub mod symbol;
 pub mod thread_pool;
 pub mod log;
-pub mod core;
+pub mod body;
+pub mod json;
 pub mod null;
 pub mod url;
+pub mod core;
 pub mod application;
 pub mod controller;
-pub mod json;
 
 
-use crate::server::Server;
 use crate::app::App;
+use crate::server::Server;
+use crate::application::Application;
 use crate::core::New;
+
+pub fn start(app: impl Application + New + Send + 'static + Copy) {
+
+    let new_server = Server::setup();
+    if new_server.is_err() {
+        eprintln!("{}", new_server.as_ref().err().unwrap());
+    }
+
+
+    let (listener, pool) = new_server.unwrap();
+
+    Server::run(listener, pool, app);
+}
 
 pub fn start_server() {
 
