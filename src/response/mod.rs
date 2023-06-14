@@ -5,6 +5,7 @@ mod example;
 
 use std::io;
 use std::io::{BufRead, Cursor, Read};
+use crate::body::multipart_form_data::FormMultipartData;
 use crate::header::Header;
 use crate::ext::string_ext::StringExt;
 use crate::http::{HTTP, VERSION};
@@ -191,6 +192,16 @@ pub const STATUS_CODE_REASON_PHRASE: ResponseStatusCodeReasonPhrase = ResponseSt
 };
 
 impl Response {
+
+    pub fn build(status: StatusCodeReasonPhrase, header_list : Vec<Header>, body: Vec<ContentRange>) -> Response {
+        Response {
+            http_version: VERSION.http_1_1.to_string(),
+            status_code: *status.status_code,
+            reason_phrase: status.reason_phrase.to_string(),
+            headers: header_list,
+            content_range_list: body,
+        }
+    }
 
     pub fn status_code_reason_phrase_list() -> Vec<&'static StatusCodeReasonPhrase> {
         let list = vec![
@@ -449,7 +460,7 @@ impl Response {
         let uppercase_reason_phrase = reason_phrase.to_uppercase();
         let is_equal =
             &found_status_code_reason_phrase.reason_phrase
-            .to_uppercase()
+                .to_uppercase()
                 .eq(uppercase_reason_phrase.as_str());
 
         if !is_equal {
@@ -683,6 +694,8 @@ impl Response {
     }
 
     pub fn parse(response_vec_u8: &[u8]) -> Result<Response, String> {
+        let total_bytes : i32 = response_vec_u8.len() as i32;
+        let bytes_read = 0;
         let mut cursor = io::Cursor::new(response_vec_u8);
 
         let mut response = Response {
@@ -696,7 +709,13 @@ impl Response {
         let content_length: usize = 0;
         let iteration_number : usize = 0;
 
-        let boxed_parse = Response::parse_raw_response_via_cursor(&mut cursor, iteration_number, &mut response, content_length);
+        let boxed_parse = Response::parse_raw_response_via_cursor(
+            &mut cursor, iteration_number,
+            &mut response,
+            content_length,
+            total_bytes,
+            bytes_read
+        );
         if boxed_parse.is_err() {
             let message = boxed_parse.err().unwrap();
             return Err(message);
@@ -709,7 +728,9 @@ impl Response {
         cursor: &mut Cursor<&[u8]>,
         mut iteration_number: usize,
         response: &mut Response,
-        mut content_length: usize) -> Result<(), String> {
+        mut content_length: usize,
+        total_bytes: i32,
+        mut bytes_read: i32) -> Result<(), String> {
 
         let mut buffer = vec![];
         let boxed_read = cursor.read_until(b'\n', &mut buffer);
@@ -718,6 +739,10 @@ impl Response {
             return Err(message);
         }
         let bytes_offset = boxed_read.unwrap();
+        bytes_read = bytes_read + bytes_offset as i32;
+        if bytes_read == total_bytes {
+            // end of stream
+        }
         let mut buffer_as_u8_array: &[u8] = &buffer;
         let boxed_string = String::from_utf8(Vec::from(buffer_as_u8_array));
         if boxed_string.is_err() {
@@ -759,15 +784,26 @@ impl Response {
 
             if is_multipart {
                 let content_range_list : Vec<ContentRange> = vec![];
-
-                let mut buf = vec![];
-                let boxed_read = cursor.read_until(b'\n', &mut buf);
-                if boxed_read.is_err() {
-                    let message = boxed_read.err().unwrap().to_string();
-                    return Err(message);
+                let boxed_content_type = response.get_header(Header::_CONTENT_TYPE.to_string());
+                if boxed_content_type.is_none() {
+                    return Err("Content-Type is missing".to_string());
                 }
-                boxed_read.unwrap();
-                let boxed_content_range_list = Range::parse_multipart_body(cursor, content_range_list);
+                let content_type = boxed_content_type.unwrap();
+                let boxed_boundary = FormMultipartData::extract_boundary(content_type.value.as_str());
+                if boxed_boundary.is_err() {
+                    return Err("unable to extract boundary from Content-Type".to_string());
+                }
+                let boundary = boxed_boundary.unwrap();
+
+                let is_opening_boundary_read = false;
+                let boxed_content_range_list =
+                    Range::parse_multipart_body_with_boundary(
+                        cursor,
+                        content_range_list,
+                        boundary,
+                        total_bytes,
+                        bytes_read,
+                        is_opening_boundary_read);
                 if boxed_content_range_list.is_err() {
                     let message = boxed_content_range_list.err().unwrap();
                     return Err(message);
@@ -780,6 +816,11 @@ impl Response {
                 if boxed_read.is_err() {
                     let message = boxed_read.err().unwrap().to_string();
                     return Err(message);
+                }
+                let bytes_offset = boxed_read.unwrap();
+                bytes_read = bytes_read + bytes_offset as i32;
+                if bytes_read == total_bytes {
+                    // end of stream
                 }
 
                 buffer_as_u8_array = &buffer;
@@ -817,7 +858,7 @@ impl Response {
             }
 
             iteration_number += 1;
-            return Response::parse_raw_response_via_cursor(cursor, iteration_number, response, content_length);
+            return Response::parse_raw_response_via_cursor(cursor, iteration_number, response, content_length, total_bytes, bytes_read );
         } else {
             return Err("unable to parse".to_string());
         }
