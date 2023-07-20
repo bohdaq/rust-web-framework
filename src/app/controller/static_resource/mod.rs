@@ -9,6 +9,10 @@ use crate::request::{METHOD, Request};
 use crate::response::{Error, Response, STATUS_CODE_REASON_PHRASE};
 use crate::server::ConnectionInfo;
 use crate::symbol::SYMBOL;
+use crate::url::URL;
+
+#[cfg(test)]
+mod tests;
 
 pub struct StaticResourceController;
 
@@ -18,7 +22,19 @@ impl Controller for StaticResourceController {
             return false;
         }
 
-        let boxed_static_filepath = FileExt::get_static_filepath(&request.request_uri);
+        let url_array = ["http://", "localhost", &request.request_uri];
+        let url = url_array.join(SYMBOL.empty_string);
+
+        let boxed_url_components = URL::parse(&url);
+        if boxed_url_components.is_err() {
+            let message = boxed_url_components.as_ref().err().unwrap().to_string();
+            // unfallable
+            println!("unexpected error, {}", message);
+        }
+
+        let components = boxed_url_components.unwrap();
+
+        let boxed_static_filepath = FileExt::get_static_filepath(&components.path);
         if boxed_static_filepath.is_err() {
             return false
         }
@@ -26,21 +42,43 @@ impl Controller for StaticResourceController {
         let static_filepath = boxed_static_filepath.unwrap();
 
         let boxed_md = metadata(&static_filepath);
-        if boxed_md.is_err() {
-            return false
+        if boxed_md.is_ok() {
+            let md = boxed_md.unwrap();
+            if md.is_dir() {
+                return false
+            }
         }
 
-        let md = boxed_md.unwrap();
-        if md.is_dir() {
-            return false
-        }
+
 
         let boxed_file = File::open(&static_filepath);
 
         let is_get = request.method == METHOD.get;
         let is_head = request.method == METHOD.head;
         let is_options = request.method == METHOD.options;
-        boxed_file.is_ok() && (is_get || is_head || is_options && request.request_uri != SYMBOL.slash)
+
+        let is_matching_method = is_get || is_head || is_options && request.request_uri != SYMBOL.slash;
+
+        if boxed_file.is_ok() {
+            is_matching_method
+        } else {
+            // check if file with same name and .html extension exists
+            if static_filepath.ends_with(".html") {
+                return false
+            }
+
+            let html_suffix = ".html";
+            let html_file = [&components.path, html_suffix].join(SYMBOL.empty_string);
+            let boxed_static_filepath = FileExt::get_static_filepath(&html_file);
+            if boxed_static_filepath.is_err() {
+                return false
+            }
+
+            let static_filepath = boxed_static_filepath.unwrap();
+            let boxed_file = File::open(&static_filepath);
+
+            boxed_file.is_ok() && is_matching_method
+        }
 
     }
 
@@ -66,7 +104,20 @@ impl Controller for StaticResourceController {
 
                 let dir = env::current_dir().unwrap();
                 let working_directory = dir.as_path().to_str().unwrap();
-                let static_filepath = [working_directory, request.request_uri.as_str()].join(SYMBOL.empty_string);
+
+                let url_array = ["http://", "localhost", &request.request_uri];
+                let url = url_array.join(SYMBOL.empty_string);
+
+                let boxed_url_components = URL::parse(&url);
+                if boxed_url_components.is_err() {
+                    let message = boxed_url_components.as_ref().err().unwrap().to_string();
+                    // unfallable
+                    println!("unexpected error, {}", message);
+                }
+
+                let components = boxed_url_components.unwrap();
+
+                let static_filepath = [working_directory, components.path.as_str()].join(SYMBOL.empty_string);
                 let boxed_modified_date_time = FileExt::file_modified_utc(&static_filepath);
 
                 if boxed_modified_date_time.is_ok() {
@@ -102,6 +153,7 @@ impl Controller for StaticResourceController {
     }
 }
 
+//backward compatability
 impl StaticResourceController {
 
     pub fn is_matching_request(request: &Request) -> bool {
@@ -190,7 +242,20 @@ impl StaticResourceController {
     pub fn process_static_resources(request: &Request) -> Result<Vec<ContentRange>, Error> {
         let dir = env::current_dir().unwrap();
         let working_directory = dir.as_path().to_str().unwrap();
-        let static_filepath = [working_directory, request.request_uri.as_str()].join(SYMBOL.empty_string);
+
+        let url_array = ["http://", "localhost", &request.request_uri];
+        let url = url_array.join(SYMBOL.empty_string);
+
+        let boxed_url_components = URL::parse(&url);
+        if boxed_url_components.is_err() {
+            let message = boxed_url_components.as_ref().err().unwrap().to_string();
+            // unfallable
+            println!("unexpected error, {}", message);
+        }
+
+        let components = boxed_url_components.unwrap();
+
+        let static_filepath = [working_directory, components.path.as_str()].join(SYMBOL.empty_string);
 
         let mut content_range_list = Vec::new();
 
@@ -214,6 +279,52 @@ impl StaticResourceController {
                 } else {
                     let error = boxed_content_range_list.err().unwrap();
                     return Err(error)
+                }
+            }
+        }
+
+
+        if boxed_file.is_err() {
+            //check if .html file exists
+            let static_filepath = [working_directory, components.path.as_str(), ".html"].join(SYMBOL.empty_string);
+
+            let boxed_file = File::open(&static_filepath);
+            if boxed_file.is_ok()  {
+                let md = metadata(&static_filepath).unwrap();
+                if md.is_file() {
+                    let mut range_header = &Header {
+                        name: Header::_RANGE.to_string(),
+                        value: "bytes=0-".to_string()
+                    };
+
+                    let boxed_header = request.get_header(Header::_RANGE.to_string());
+                    if boxed_header.is_some() {
+                        range_header = boxed_header.unwrap();
+                    }
+
+                    let url_array = ["http://", "localhost", &request.request_uri];
+                    let url = url_array.join(SYMBOL.empty_string);
+
+                    let boxed_url_components = URL::parse(&url);
+                    if boxed_url_components.is_err() {
+                        let message = boxed_url_components.as_ref().err().unwrap().to_string();
+                        // unfallable
+                        println!("unexpected error, {}", message);
+                    }
+
+                    let components = boxed_url_components.unwrap();
+
+                    // let html_file = [SYMBOL.slash, ].join(SYMBOL.empty_string);
+
+
+                    let html_file = [components.path.as_str(), ".html"].join(SYMBOL.empty_string);
+                    let boxed_content_range_list = Range::get_content_range_list(html_file.as_str(), range_header);
+                    if boxed_content_range_list.is_ok() {
+                        content_range_list = boxed_content_range_list.unwrap();
+                    } else {
+                        let error = boxed_content_range_list.err().unwrap();
+                        return Err(error)
+                    }
                 }
             }
         }

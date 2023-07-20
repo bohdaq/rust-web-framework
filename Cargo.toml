@@ -1,6 +1,6 @@
 [package]
 name = "rust-web-server"
-version = "14.0.0"
+version = "15.1.0"
 authors = ["Bohdan Tsap <bohdan.tsap@tutanota.com>"]
 repository = "https://github.com/bohdaq/rust-web-framework/"
 description = "Collection of utility functions used to build Rust Web and TLS Server. Can be useful while developing HTTP related functionality"
@@ -12,6 +12,6 @@ keywords = ["HTTP", "server", "request", "response", "header"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-file-ext = "11.0.0"
+file-ext = "12.0.0"
 url-search-params = "12.0.0"
 url-build-parse = "12.1.0"
