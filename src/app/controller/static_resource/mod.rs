@@ -45,7 +45,19 @@ impl Controller for StaticResourceController {
         if boxed_md.is_ok() {
             let md = boxed_md.unwrap();
             if md.is_dir() {
-                return false
+                let mut directory_index = "index.html";
+
+                let last_char = components.path.chars().last().unwrap();
+                if last_char != '/' {
+                    directory_index = "/index.html"
+                }
+                let index_html_in_directory_array = [&static_filepath, directory_index];
+                let index_html_in_directory = index_html_in_directory_array.join(SYMBOL.empty_string);
+
+                let boxed_file = File::open(&index_html_in_directory);
+                if boxed_file.is_err() {
+                    return false
+                }
             }
         }
 
@@ -262,6 +274,36 @@ impl StaticResourceController {
         let boxed_file = File::open(&static_filepath);
         if boxed_file.is_ok()  {
             let md = metadata(&static_filepath).unwrap();
+            if md.is_dir() {
+                let mut range_header = &Header {
+                    name: Header::_RANGE.to_string(),
+                    value: "bytes=0-".to_string()
+                };
+
+                let boxed_header = request.get_header(Header::_RANGE.to_string());
+                if boxed_header.is_some() {
+                    range_header = boxed_header.unwrap();
+                }
+
+                let mut directory_index = "index.html";
+
+                let last_char = components.path.chars().last().unwrap();
+                if last_char != '/' {
+                    directory_index = "/index.html"
+                }
+
+                let url_array = [&components.path, directory_index];
+                let directory_index_html_path = url_array.join(SYMBOL.empty_string);
+
+                let boxed_content_range_list = Range::get_content_range_list(&directory_index_html_path, range_header);
+                if boxed_content_range_list.is_ok() {
+                    content_range_list = boxed_content_range_list.unwrap();
+                } else {
+                    let error = boxed_content_range_list.err().unwrap();
+                    return Err(error)
+                }
+            }
+
             if md.is_file() {
                 let mut range_header = &Header {
                     name: Header::_RANGE.to_string(),

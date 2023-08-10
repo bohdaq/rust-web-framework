@@ -7,13 +7,16 @@ Core lib for [rust-web-server](https://github.com/bohdaq/rust-web-server), [rust
 **NOTE! The corresponding crate is called [rust-web-server](https://crates.io/crates/rust-web-server)**.
 
 ## Features
-1. [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
-1. [HTTP Range Requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests)
-1. [HTTP Client Hints](https://developer.mozilla.org/en-US/docs/Web/HTTP/Client_hints)
-1. [X-Content-Type-Options](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options)
-1. [X-Frame-Options](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options)
-1. No third party dependencies
-1. [Symlinks](https://en.wikipedia.org/wiki/Symbolic_link)
+1. [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS). Allowing resources to be used on other domains can be crucial for providing APIs and services. Knowing how cumberstone and difficult is the process to setup the CORS, server ships with CORS enabled to all requests by default.
+1. [HTTP Range Requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests). Server supports requests for the part of the file, or several different parts of the file.
+1. [HTTP Client Hints](https://developer.mozilla.org/en-US/docs/Web/HTTP/Client_hints). Proactively asking client browser for suitable additional information about the system.
+1. [X-Content-Type-Options](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options) set to nosniff, prevents from MIME type sniffing attacks.
+1. [X-Frame-Options](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options). Site is not allowed to be embedded into iframe on other domains.
+1. [Symlinks](https://en.wikipedia.org/wiki/Symbolic_link). You can have symlinks in your folder and they will be resolved correctly.
+1. [Caching](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching#dealing_with_outdated_implementations) done right. It means no caching and therefore no outdated uncontrollable resources.
+1. Resolving .html files without .html in path. It means if you try to open /some-html-file it will open file some-html-file.html and won't show 404 not found error. Same applies for folders. If you try to open /folder it will open file folder/index.html
+1. Extensive logging. It means server prints the request-response pairs as they are so you can see all the details like request method, path, version and headers.
+1. No third party dependencies.
 1. [Forms](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form) (without files)
 
 ## Documentation
