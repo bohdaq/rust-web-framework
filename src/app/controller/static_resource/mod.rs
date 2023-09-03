@@ -34,30 +34,39 @@ impl Controller for StaticResourceController {
 
         let components = boxed_url_components.unwrap();
 
-        let boxed_static_filepath = FileExt::get_static_filepath(&components.path);
+        let os_specific_separator : String = FileExt::get_path_separator();
+        let os_specific_path = &components.path.replace(SYMBOL.slash, os_specific_separator.as_str());
+
+        let boxed_static_filepath = FileExt::get_static_filepath(&os_specific_path);
         if boxed_static_filepath.is_err() {
             return false
         }
 
         let static_filepath = boxed_static_filepath.unwrap();
 
+        let mut is_directory_with_index_html = false;
+
         let boxed_md = metadata(&static_filepath);
         if boxed_md.is_ok() {
             let md = boxed_md.unwrap();
             if md.is_dir() {
-                let mut directory_index = "index.html";
+                let mut directory_index : String = "index.html".to_string();
 
                 let last_char = components.path.chars().last().unwrap();
                 if last_char != '/' {
-                    directory_index = "/index.html"
+                    let index : String = "index.html".to_string();
+                    directory_index = format!("{}{}", os_specific_separator, index);
+
                 }
-                let index_html_in_directory_array = [&static_filepath, directory_index];
-                let index_html_in_directory = index_html_in_directory_array.join(SYMBOL.empty_string);
+                let index_html_in_directory = format!("{}{}", static_filepath, directory_index);
+
 
                 let boxed_file = File::open(&index_html_in_directory);
                 if boxed_file.is_err() {
                     return false
                 }
+
+                is_directory_with_index_html = true;
             }
         }
 
@@ -69,9 +78,9 @@ impl Controller for StaticResourceController {
         let is_head = request.method == METHOD.head;
         let is_options = request.method == METHOD.options;
 
-        let is_matching_method = is_get || is_head || is_options && request.request_uri != SYMBOL.slash;
+        let is_matching_method = (is_get || is_head || is_options) && (request.request_uri != SYMBOL.slash);
 
-        if boxed_file.is_ok() {
+        if boxed_file.is_ok() || is_directory_with_index_html {
             is_matching_method
         } else {
             // check if file with same name and .html extension exists
@@ -80,7 +89,7 @@ impl Controller for StaticResourceController {
             }
 
             let html_suffix = ".html";
-            let html_file = [&components.path, html_suffix].join(SYMBOL.empty_string);
+            let html_file = [&components.path.replace(SYMBOL.slash, &FileExt::get_path_separator()), html_suffix].join(SYMBOL.empty_string);
             let boxed_static_filepath = FileExt::get_static_filepath(&html_file);
             if boxed_static_filepath.is_err() {
                 return false
@@ -267,13 +276,29 @@ impl StaticResourceController {
 
         let components = boxed_url_components.unwrap();
 
-        let static_filepath = [working_directory, components.path.as_str()].join(SYMBOL.empty_string);
+        let os_specific_separator : String = FileExt::get_path_separator();
+        let os_specific_path = &components.path.replace(SYMBOL.slash, os_specific_separator.as_str());
+
+        let boxed_static_filepath = FileExt::get_static_filepath(&os_specific_path);
+
+        let static_filepath = boxed_static_filepath.unwrap();
 
         let mut content_range_list = Vec::new();
 
-        let boxed_file = File::open(&static_filepath);
-        if boxed_file.is_ok()  {
-            let md = metadata(&static_filepath).unwrap();
+
+        let mut boxed_md = metadata(&static_filepath);
+        if boxed_md.is_err() {
+            let dot_html = format!("{}{}", &static_filepath, ".html");
+            boxed_md = metadata(&dot_html);
+
+            if boxed_md.is_err() {
+                let slash_index_html = format!("{}{}{}", &static_filepath, os_specific_separator,  "index.html");
+                boxed_md = metadata(&slash_index_html);
+            }
+        }
+        if boxed_md.is_ok() {
+            let md = boxed_md.unwrap();
+
             if md.is_dir() {
                 let mut range_header = &Header {
                     name: Header::_RANGE.to_string(),
@@ -285,54 +310,60 @@ impl StaticResourceController {
                     range_header = boxed_header.unwrap();
                 }
 
-                let mut directory_index = "index.html";
+                let mut directory_index : String = "index.html".to_string();
 
                 let last_char = components.path.chars().last().unwrap();
                 if last_char != '/' {
-                    directory_index = "/index.html"
+                    let index : String = "index.html".to_string();
+                    directory_index = format!("{}{}", os_specific_separator, index);
                 }
+                let index_html_in_directory = format!("{}{}", os_specific_path, directory_index);
 
-                let url_array = [&components.path, directory_index];
-                let directory_index_html_path = url_array.join(SYMBOL.empty_string);
 
-                let boxed_content_range_list = Range::get_content_range_list(&directory_index_html_path, range_header);
+                let boxed_content_range_list = Range::get_content_range_list(&index_html_in_directory, range_header);
                 if boxed_content_range_list.is_ok() {
                     content_range_list = boxed_content_range_list.unwrap();
                 } else {
                     let error = boxed_content_range_list.err().unwrap();
                     return Err(error)
                 }
+
+                return Ok(content_range_list);
             }
-
-            if md.is_file() {
-                let mut range_header = &Header {
-                    name: Header::_RANGE.to_string(),
-                    value: "bytes=0-".to_string()
-                };
-
-                let boxed_header = request.get_header(Header::_RANGE.to_string());
-                if boxed_header.is_some() {
-                    range_header = boxed_header.unwrap();
-                }
-
-                let boxed_content_range_list = Range::get_content_range_list(&request.request_uri, range_header);
-                if boxed_content_range_list.is_ok() {
-                    content_range_list = boxed_content_range_list.unwrap();
-                } else {
-                    let error = boxed_content_range_list.err().unwrap();
-                    return Err(error)
-                }
-            }
-        }
-
-
-        if boxed_file.is_err() {
-            //check if .html file exists
-            let static_filepath = [working_directory, components.path.as_str(), ".html"].join(SYMBOL.empty_string);
 
             let boxed_file = File::open(&static_filepath);
             if boxed_file.is_ok()  {
                 let md = metadata(&static_filepath).unwrap();
+                if md.is_dir() {
+                    let mut range_header = &Header {
+                        name: Header::_RANGE.to_string(),
+                        value: "bytes=0-".to_string()
+                    };
+
+                    let boxed_header = request.get_header(Header::_RANGE.to_string());
+                    if boxed_header.is_some() {
+                        range_header = boxed_header.unwrap();
+                    }
+
+                    let mut directory_index : String = "index.html".to_string();
+
+                    let last_char = components.path.chars().last().unwrap();
+                    if last_char != '/' {
+                        let index : String = "index.html".to_string();
+                        directory_index = format!("{}{}", os_specific_separator, index);
+                    }
+                    let index_html_in_directory = format!("{}{}", os_specific_path, directory_index);
+
+
+                    let boxed_content_range_list = Range::get_content_range_list(&index_html_in_directory, range_header);
+                    if boxed_content_range_list.is_ok() {
+                        content_range_list = boxed_content_range_list.unwrap();
+                    } else {
+                        let error = boxed_content_range_list.err().unwrap();
+                        return Err(error)
+                    }
+                }
+
                 if md.is_file() {
                     let mut range_header = &Header {
                         name: Header::_RANGE.to_string(),
@@ -344,23 +375,7 @@ impl StaticResourceController {
                         range_header = boxed_header.unwrap();
                     }
 
-                    let url_array = ["http://", "localhost", &request.request_uri];
-                    let url = url_array.join(SYMBOL.empty_string);
-
-                    let boxed_url_components = URL::parse(&url);
-                    if boxed_url_components.is_err() {
-                        let message = boxed_url_components.as_ref().err().unwrap().to_string();
-                        // unfallable
-                        println!("unexpected error, {}", message);
-                    }
-
-                    let components = boxed_url_components.unwrap();
-
-                    // let html_file = [SYMBOL.slash, ].join(SYMBOL.empty_string);
-
-
-                    let html_file = [components.path.as_str(), ".html"].join(SYMBOL.empty_string);
-                    let boxed_content_range_list = Range::get_content_range_list(html_file.as_str(), range_header);
+                    let boxed_content_range_list = Range::get_content_range_list(&request.request_uri, range_header);
                     if boxed_content_range_list.is_ok() {
                         content_range_list = boxed_content_range_list.unwrap();
                     } else {
@@ -369,7 +384,54 @@ impl StaticResourceController {
                     }
                 }
             }
+
+
+            if boxed_file.is_err() {
+                //check if .html file exists
+                let static_filepath = [working_directory, components.path.as_str(), ".html"].join(SYMBOL.empty_string);
+
+                let boxed_file = File::open(&static_filepath);
+                if boxed_file.is_ok()  {
+                    let md = metadata(&static_filepath).unwrap();
+                    if md.is_file() {
+                        let mut range_header = &Header {
+                            name: Header::_RANGE.to_string(),
+                            value: "bytes=0-".to_string()
+                        };
+
+                        let boxed_header = request.get_header(Header::_RANGE.to_string());
+                        if boxed_header.is_some() {
+                            range_header = boxed_header.unwrap();
+                        }
+
+                        let url_array = ["http://", "localhost", &request.request_uri];
+                        let url = url_array.join(SYMBOL.empty_string);
+
+                        let boxed_url_components = URL::parse(&url);
+                        if boxed_url_components.is_err() {
+                            let message = boxed_url_components.as_ref().err().unwrap().to_string();
+                            // unfallable
+                            println!("unexpected error, {}", message);
+                        }
+
+                        let components = boxed_url_components.unwrap();
+
+                        // let html_file = [SYMBOL.slash, ].join(SYMBOL.empty_string);
+
+
+                        let html_file = [components.path.as_str(), ".html"].join(SYMBOL.empty_string);
+                        let boxed_content_range_list = Range::get_content_range_list(html_file.as_str(), range_header);
+                        if boxed_content_range_list.is_ok() {
+                            content_range_list = boxed_content_range_list.unwrap();
+                        } else {
+                            let error = boxed_content_range_list.err().unwrap();
+                            return Err(error)
+                        }
+                    }
+                }
+            }
         }
+
 
         Ok(content_range_list)
     }
